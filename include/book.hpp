@@ -25,13 +25,13 @@ constexpr Genre GenreFromString(std::string_view s) {
 // Класс описателя книги
 struct Book {
     // string_view для экономии памяти, чтобы ссылаться на оригинальную строку, хранящуюся в другом контейнере
-    std::string_view author_;
-    std::string title_;
+    std::string_view author_;  // автор
+    std::string title_;        // название книги
 
-    int year_;
-    Genre genre_;
-    double rating_;
-    int read_count_;
+    int year_;        // год издания
+    Genre genre_;     // жанр
+    double rating_;   // рейтинг (макс. - 5.0)
+    int read_count_;  // число прочтений
 
     // Конструктор описателя книги, принимающий жанр в виде строки
     // (может работать во t компиляции, если вcе аргументы const)
