@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "book.hpp"
-#include "comparators.hpp"
+#include "book.hpp"         // заголовочный файл с классом описателя книги и шаблонами для его форматирования
+#include "comparators.hpp"  // компараторы для работы с описателями книг
+#include "concepts.hpp"     // концепты для работы с описателями книг
 
 using namespace bookdb;
 
@@ -102,4 +103,31 @@ TEST(BookTest, CorrectComparators) {
     for (const auto &[name, lhs, rhs, comp, expected] : tests) {
         EXPECT_EQ(comp(lhs, rhs), expected) << "Failed: " << name;
     }
+}
+
+// Тест корректности работы концептов
+TEST(BookTest, CorrectConcepts) {
+    using namespace bookdb;
+    using namespace bookdb::comp;
+
+    // Контейнер std::vector должен отвечать концепту BookContainerLike
+    static_assert(BookContainerLike<std::vector<Book>>);
+
+    // Итератор std::vector должен отвечать концепту BookIterator
+    static_assert(BookIterator<std::vector<Book>::const_iterator>);
+
+    // Компараторы описателей книг должны отвечать концепту BookComparator
+    static_assert(AllComparatorsValid<LessByAuthor, LessByTitle, LessByYear, LessByRating, LessByReadCount,
+                                      GreaterByYear, GreaterByRating, GreaterByReadCount>);
+
+    // Лямбда должна отвечать концепту BookPredicate
+    auto isSciFi = [](const Book &b) { return b.genre_ == Genre::SciFi; };
+    static_assert(BookPredicate<decltype(isSciFi)>);
+
+    // Проверяем некорретные случаи
+    static_assert(!BookContainerLike<std::string>);
+    static_assert(!BookIterator<int>);
+    static_assert(!BookPredicate<int>);
+
+    SUCCEED() << "All concepts checks passed";
 }
