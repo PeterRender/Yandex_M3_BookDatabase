@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
-#include <unordered_set>  // подлключение std::unordered_set
+#include <unordered_set>  // подключение std::unordered_set
 
 #include "book.hpp"                  // заголовочный файл с классом описателя книги и шаблонами для его форматирования
+#include "book_database.hpp"         // заголовочный файл с классом картотеки книг и шаблоном ее форматирования
 #include "comparators.hpp"           // компараторы для работы с описателями книг
 #include "concepts.hpp"              // концепты для работы с описателями книг
 #include "heterogeneous_lookup.hpp"  // прозрачные компараторы и хэш-функция для гетерогенного поиска
@@ -163,4 +164,96 @@ TEST(BookTest, HeteroLookup) {
     // Проверка поиска по несуществующим ключам (трех типов)
     EXPECT_FALSE(test_find(authors_map, "Salinger", std::string("Lee"), std::string_view("Orwell")));
     EXPECT_FALSE(test_find(authors_umap, "Salinger", std::string("Lee"), std::string_view("Orwell")));
+}
+
+// Тест корректности заполнения картотеки книг
+TEST(BookDatabaseTest, CorrectFilling) {
+    using namespace bookdb;
+
+    // Создаем тестовый массив описателей книг
+    std::vector<Book> books = {{"1984", "George Orwell", 1949, Genre::SciFi, 4., 190},
+                               {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+                               {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+                               {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
+                               {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98}};
+
+    // Создаем тестовые объекты картотек (исходно они должны быть пустыми)
+    BookDatabase<std::vector<Book>> bookDbs[2];
+    for (const auto &db : bookDbs) {
+        EXPECT_EQ(db.size(), 0);
+        EXPECT_TRUE(db.empty());
+    }
+
+    // Заполняем картотеки описателями книг (1-ую картотеку - путем добавления, 2-ую - путем создания внутри)
+    for (const auto &b : books) {
+        bookDbs[0].PushBack(b);
+        auto &empl_book = bookDbs[1].EmplaceBack(b.title_, b.author_, b.year_, b.genre_, b.rating_, b.read_count_);
+        EXPECT_EQ(empl_book.title_, b.title_);  // должна вернуться ссылка на созданную книгу
+    }
+
+    // Проверяем заполненные картотеки
+    for (const auto &db : bookDbs) {
+        // Размеры картотеки должны корректно измениться
+        EXPECT_EQ(db.size(), books.size());
+        EXPECT_FALSE(db.empty());
+
+        // Число авторов в картотеке должно равняться числу уникальных (неповторяющихся) авторов
+        EXPECT_EQ(db.GetAuthors().size(), 4);
+
+        // В картотеке должны быть все добавленные уникальные авторы
+        for (const auto &b : books) {
+            EXPECT_TRUE(db.GetAuthors().contains(b.author_));
+        }
+    }
+}
+
+// Тест корректности инициализации картотеки книг
+TEST(BookDatabaseTest, CorrectInit) {
+    using namespace bookdb;
+
+    // Создаем список описателей книг
+    std::initializer_list<Book> book_list = {{"1984", "George Orwell", 1949, Genre::SciFi, 4., 190},
+                                             {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+                                             {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203}};
+
+    // Инициализируем картотеку списком описателей книг
+    BookDatabase db{book_list};
+
+    EXPECT_EQ(db.size(), book_list.size());  // размер картотеки должен совпадать с размером списка описателей книг
+    EXPECT_EQ(db.GetAuthors().size(), 2);    // в картотеке должны быть только уникальные авторы
+
+    // В картотеке должны быть все добавленные уникальные авторы
+    for (const auto &b : book_list) {
+        EXPECT_TRUE(db.GetAuthors().contains(b.author_));
+    }
+}
+
+// Тест совместимости со стандартными алгоритмами
+TEST(BookDatabaseTest, StdAlgoReadiness) {
+    using namespace bookdb;
+    using namespace bookdb::comp;
+
+    // Инициализируем картотеку списком описателей книг
+    BookDatabase db = {
+        {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
+        {"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
+        {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98},
+        {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+        {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+    };
+
+    // Выполняем сортировку книг по убыванию рейтинга с сохранением относительного порядка
+    std::stable_sort(db.begin(), db.end(), GreaterByRating{});
+
+    // Проверяем результат стабильной сортировки по рейтингу
+    auto it = db.begin();
+    EXPECT_EQ(it->title_, "The Hobbit");            // на 1-ом месте должен быть "The Hobbit"
+    EXPECT_EQ((++it)->title_, "The Great Gatsby");  // на 2-ом месте - "The Great Gatsby"
+    EXPECT_EQ((++it)->title_, "Brave New World");   // на 3-м месте - "Brave New World"
+    EXPECT_EQ((++it)->title_, "Animal Farm");       // на 4-м месте - "Animal Farm"
+    EXPECT_EQ((++it)->title_, "1984");              // на 5-м месте - "1984"
+
+    // Проверяем поиск по условию
+    auto hobbit_it = std::find_if(db.begin(), db.end(), [](const Book &b) { return b.year_ == 1937; });
+    EXPECT_NE(hobbit_it, db.end());
 }
