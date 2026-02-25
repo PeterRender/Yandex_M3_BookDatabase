@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
+#include <unordered_set>  // подлключение std::unordered_set
 
-#include "book.hpp"         // заголовочный файл с классом описателя книги и шаблонами для его форматирования
-#include "comparators.hpp"  // компараторы для работы с описателями книг
-#include "concepts.hpp"     // концепты для работы с описателями книг
+#include "book.hpp"                  // заголовочный файл с классом описателя книги и шаблонами для его форматирования
+#include "comparators.hpp"           // компараторы для работы с описателями книг
+#include "concepts.hpp"              // концепты для работы с описателями книг
+#include "heterogeneous_lookup.hpp"  // прозрачные компараторы и хэш-функция для гетерогенного поиска
 
 using namespace bookdb;
 
@@ -30,7 +32,7 @@ TEST(BookTest, BookWithEnumGenre) {
     EXPECT_EQ(book.read_count_, 98);
 }
 
-// Тест корректного преобразования описателя книги в строку
+// Тест корректного форматрирования описателя книги
 TEST(BookTest, FormatBook) {
     Book book("The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120);
     std::string result = std::format("{}", book);
@@ -49,7 +51,7 @@ TEST(BookTest, CorrectComparators) {
     using namespace bookdb;
     using namespace bookdb::comp;
 
-    Book hobbit("The Hobbit", "Tolkien", 1937, Genre::Fiction, 4.9, 203);
+    Book hobbit("The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203);
     Book gatsby("The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120);
     Book world("Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98);
 
@@ -130,4 +132,35 @@ TEST(BookTest, CorrectConcepts) {
     static_assert(!BookPredicate<int>);
 
     SUCCEED() << "All concepts checks passed";
+}
+
+// Тест корректности работы гетерогенного поиска
+TEST(BookTest, HeteroLookup) {
+    using namespace bookdb;
+
+    // Создаем тестовые контейнеры с поддержкой гетерогенного поиска
+    std::map<std::string, int, TransparentStringLess> authors_map{{"Fitzgerald", 2}, {"Tolkien", 1}, {"Huxley", 3}};
+    std::unordered_set<std::string, TransparentStringHash, TransparentStringEqual> authors_umap{"Tolkien", "Fitzgerald",
+                                                                                                "Huxley"};
+
+    // Шаблонная лямбда для проверки пакета ключей разных типов (const char*, std::string и std::string_view)
+    auto test_find = []<typename Container, typename... Keys>(Container &cont, Keys &&...keys) {
+        return ((cont.find(std::forward<Keys>(keys)) != cont.end()) && ...);  // fold expression для обработки пакета.
+    };
+
+    // Проверка поиска по существующим ключам (трех типов)
+    EXPECT_TRUE(test_find(authors_map,
+                          "Fitzgerald",               // const char*
+                          std::string("Tolkien"),     // std::string
+                          std::string_view("Huxley")  // std::string_view
+                          ));
+    EXPECT_TRUE(test_find(authors_umap,
+                          "Tolkien",                  // const char*
+                          std::string("Fitzgerald"),  // std::string
+                          std::string_view("Huxley")  // std::string_view
+                          ));
+
+    // Проверка поиска по несуществующим ключам (трех типов)
+    EXPECT_FALSE(test_find(authors_map, "Salinger", std::string("Lee"), std::string_view("Orwell")));
+    EXPECT_FALSE(test_find(authors_umap, "Salinger", std::string("Lee"), std::string_view("Orwell")));
 }
