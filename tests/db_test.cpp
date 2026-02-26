@@ -6,6 +6,7 @@
 #include "comparators.hpp"           // компараторы для работы с описателями книг
 #include "concepts.hpp"              // концепты для работы с описателями книг
 #include "heterogeneous_lookup.hpp"  // прозрачные компараторы и хэш-функция для гетерогенного поиска
+#include "statsistics.hpp"           // подключение функций расчета статистик картотеки книг
 
 using namespace bookdb;
 
@@ -233,7 +234,7 @@ TEST(BookDatabaseTest, StdAlgoReadiness) {
     using namespace bookdb;
     using namespace bookdb::comp;
 
-    // Инициализируем картотеку списком описателей книг
+    // Инициализируем картотеку тестовым списком книг
     BookDatabase db = {
         {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
         {"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
@@ -256,4 +257,59 @@ TEST(BookDatabaseTest, StdAlgoReadiness) {
     // Проверяем поиск по условию
     auto hobbit_it = std::find_if(db.begin(), db.end(), [](const Book &b) { return b.year_ == 1937; });
     EXPECT_NE(hobbit_it, db.end());
+}
+
+// Тест функции построения гистограммы авторов
+TEST(StatisticsTest, AuthorHistogram) {
+    using namespace bookdb;
+
+    // Создаем тестовую картотеку книг с повторяющимися авторами
+    BookDatabase<std::vector<Book>> db = {{"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+                                          {"The Silmarillion", "J.R.R. Tolkien", 1977, Genre::Fiction, 4.2, 56},
+                                          {"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
+                                          {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+                                          {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98},
+                                          {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120}};
+
+    auto histogram = buildAuthorHistogramFlat(db);
+
+    // Проверяем количество уникальных авторов
+    EXPECT_EQ(histogram.size(), 4);  // Tolkien, Orwell, Huxley, Fitzgerald
+
+    // Проверяем количество книг каждого автора
+    EXPECT_EQ(histogram["J.R.R. Tolkien"], 2);
+    EXPECT_EQ(histogram["George Orwell"], 2);
+    EXPECT_EQ(histogram["Aldous Huxley"], 1);
+    EXPECT_EQ(histogram["F. Scott Fitzgerald"], 1);
+
+    // Проверяем автора, которого нет в картотеке
+    EXPECT_EQ(histogram.contains("J.D. Salinger"), false);
+}
+
+// Тест функции расчета средних рейтингов книг по жанрам
+TEST(StatisticsTest, CalculateGenreRatings) {
+    using namespace bookdb;
+
+    // Создаем тестовую картотеку книг
+    BookDatabase db = {
+        {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
+        {"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
+        {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98},
+        {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+        {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+    };
+
+    // Вычисляем средние рейтинги книг по жанрам
+    auto ratings = calculateGenreRatings(db.begin(), db.end());
+
+    // Должно быть 2 жанра: Fiction и SciFi
+    EXPECT_EQ(ratings.size(), 2);
+
+    // Проверяем средний рейтинг по Fiction: (4.5 + 4.4 + 4.9) / 3 = 4.6
+    EXPECT_NEAR(ratings[Genre::Fiction].first, 4.6, 0.01);
+    EXPECT_EQ(ratings[Genre::Fiction].second, 3);  // должно быть 3 книги этого жанра
+
+    // Проверяем средний рейтинг по SciFi: (4.0 + 4.5) / 2 = 4.25
+    EXPECT_NEAR(ratings[Genre::SciFi].first, 4.25, 0.01);
+    EXPECT_EQ(ratings[Genre::SciFi].second, 2);  // должно быть 2 книги этого жанра
 }
