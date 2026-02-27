@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <unordered_set>  // подключение std::unordered_set
+#include <print>
 
 #include "book.hpp"                  // заголовочный файл с классом описателя книги и шаблонами для его форматирования
 #include "book_database.hpp"         // заголовочный файл с классом картотеки книг и шаблоном ее форматирования
@@ -260,7 +260,7 @@ TEST(BookDatabaseTest, StdAlgoReadiness) {
 }
 
 // Тест функции построения гистограммы авторов
-TEST(StatisticsTest, AuthorHistogram) {
+TEST(StatisticsTest, BuildAuthorHistogram) {
     using namespace bookdb;
 
     // Создаем тестовую картотеку книг с повторяющимися авторами
@@ -287,7 +287,7 @@ TEST(StatisticsTest, AuthorHistogram) {
 }
 
 // Тест функции расчета средних рейтингов книг по жанрам
-TEST(StatisticsTest, CalculateGenreRatings) {
+TEST(StatisticsTest, CalcGenreRatings) {
     using namespace bookdb;
 
     // Создаем тестовую картотеку книг
@@ -312,4 +312,114 @@ TEST(StatisticsTest, CalculateGenreRatings) {
     // Проверяем средний рейтинг по SciFi: (4.0 + 4.5) / 2 = 4.25
     EXPECT_NEAR(ratings[Genre::SciFi].first, 4.25, 0.01);
     EXPECT_EQ(ratings[Genre::SciFi].second, 2);  // должно быть 2 книги этого жанра
+}
+
+// Тест функции расчета среднего рейтинга всех книг в картотеке
+TEST(StatisticsTest, CalcAvgRating) {
+    using namespace bookdb;
+
+    BookDatabase<std::vector<Book>> db;
+    const size_t NUM_BOOKS = 10000;
+
+    // Заполняем картотеку тестовыми книгами со случайными рейтингами
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> rating_dist(1.0, 5.0);
+
+    double expected_avg = 0.0;
+    for (size_t i = 0; i < NUM_BOOKS; ++i) {
+        double rating = rating_dist(gen);
+        expected_avg += rating;
+        db.EmplaceBack("Book", "Author", 2026, Genre::Fiction, rating, 100);
+    }
+
+    expected_avg /= NUM_BOOKS;                       // ожидаемый средний рейтинг
+    double tested_avg = calculateAverageRating(db);  // результат тестируемой функции
+
+    // Результат функции должен совпадать с ожидаемым значением
+    EXPECT_DOUBLE_EQ(tested_avg, expected_avg);
+}
+
+// Тест функции случайной выборки книг из картотеки
+TEST(StatisticsTest, SampleRandomBooks) {
+    using namespace bookdb;
+
+    // Создаем тестовую картотеку из 10 книг
+    BookDatabase db = {{"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
+                       {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+                       {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
+                       {"To Kill a Mockingbird", "Harper Lee", 1960, Genre::Fiction, 4.8, 156},
+                       {"Pride and Prejudice", "Jane Austen", 1813, Genre::Fiction, 4.7, 178},
+                       {"The Catcher in the Rye", "J.D. Salinger", 1951, Genre::Fiction, 4.3, 112},
+                       {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98},
+                       {"Jane Eyre", "Charlotte Brontë", 1847, Genre::Fiction, 4.6, 110},
+                       {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+                       {"Lord of the Flies", "William Golding", 1954, Genre::Fiction, 4.2, 89}};
+
+    // Тест 1: запрашиваем меньше книг, чем есть в картотеке
+    auto sampling1 = sampleRandomBooks(db, 5);
+    EXPECT_EQ(sampling1.size(), 5);  // должны получить 5 книг
+
+    // Проверяем, что все элементы выборки - это книги из картотеки
+    for (const auto &ref : sampling1) {
+        const Book &book = ref.get();
+        // Ищем каждую книгу в картотеке по названию и году
+        auto it = std::find_if(db.begin(), db.end(),
+                               [&book](const Book &b) { return b.title_ == book.title_ && b.year_ == book.year_; });
+        // Книга должна быть найдена в картотеке
+        EXPECT_NE(it, db.end());
+    }
+
+    // Тест 2: Запрашиваем больше книг, чем есть в картотеке
+    auto sampling2 = sampleRandomBooks(db, 100);
+    EXPECT_EQ(sampling2.size(), db.size());  // должны получить все книги из картотеки
+
+    // Тест 3: Запрашиваем 0 книг
+    auto sampling3 = sampleRandomBooks(db, 0);
+    EXPECT_TRUE(sampling3.empty());  // должны получить пустую выборку
+
+    // Тест 4: Запрашиваем книги из пустой картотеки
+    BookDatabase<std::vector<Book>> empty_db;
+    auto sampling4 = sampleRandomBooks(empty_db, 3);
+    EXPECT_TRUE(sampling4.empty());  // должны получить пустую выборку
+}
+
+// Тест функции для получения топ-N книг по заданному критерию
+TEST(StatisticsTest, GetTopNBy) {
+    using namespace bookdb;
+    using namespace bookdb::comp;
+
+    // Создаем тестовую картотеку книг из 5 книг с разными рейтингами
+    BookDatabase db = {
+        {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
+        {"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
+        {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98},
+        {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+        {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+    };
+
+    // Тест 1: Получим подборку топ-3 книг по убыванию рейтинга
+    auto top_rating = getTopNBy(db, 3, GreaterByRating{});
+
+    EXPECT_EQ(top_rating.size(), 3);  // в подборке должно быть 3 книги
+    // В подборке должны быть книги с рейтингами 4.9, 4.5, 4.5
+    EXPECT_EQ(top_rating[0].get().rating_, 4.9);  // "The Hobbit"
+    EXPECT_EQ(top_rating[1].get().rating_, 4.5);  // The Great Gatsby" или "Brave New World"
+    EXPECT_EQ(top_rating[2].get().rating_, 4.5);  // The Great Gatsby" или "Brave New World"
+
+    // Тест 2: Получим подборку топ-5 книг по убыванию рейтинга (сортировка всех книг)
+    auto top_all = getTopNBy(db, 5, GreaterByRating{});
+    EXPECT_EQ(top_all.size(), 5);
+    // В подборке должны быть книги с рейтингами 4.9 (1 место) и 4.0 (5 место)
+    EXPECT_EQ(top_all[0].get().rating_, 4.9);  // "The Hobbit"
+    EXPECT_EQ(top_all[4].get().rating_, 4.0);  // "1984"
+
+    // Тест 3: Запрос топ-0 книг
+    auto top_zero = getTopNBy(db, 0, GreaterByRating{});
+    EXPECT_TRUE(top_zero.empty());
+
+    // Тест 4: Запрос топ-3 книг из пустой картотеки
+    BookDatabase<std::vector<Book>> empty_db;
+    auto top_empty = getTopNBy(empty_db, 3, GreaterByRating{});
+    EXPECT_TRUE(top_empty.empty());
 }

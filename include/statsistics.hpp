@@ -1,9 +1,11 @@
 #pragma once
 
-#include <algorithm>
-#include <flat_map>  // подключение плоского ассоциативного контейнера (С++23)
+#include <algorithm>   // подключение std::accumulate, std::sample и др.
+#include <execution>   // подключение политик последовательного/параллельного выполнения кода
+#include <flat_map>    // подключение плоского ассоциативного контейнера (С++23)
+#include <functional>  // подключение std::reference_wrapper
 #include <iterator>
-#include <random>
+#include <random>  // подключение ГПСЧ std::random_device, std::mt19937
 #include <stdexcept>
 #include <string_view>
 
@@ -32,7 +34,7 @@ auto buildAuthorHistogramFlat(const BookDatabase<T> &cont, Comparator comp = {})
         }
     }
 
-    return histogram;  // работает оптимизация компилятора RVO
+    return histogram;  // работает оптимизация компилятора RVO (отсутствует копирование)
 }
 
 // Шаблонная функция расчета средних рейтингов книг по жанрам
@@ -58,6 +60,84 @@ auto calculateGenreRatings(It first, Sen last) {
         }
     }
 
-    return avg_map;  // работает оптимизация компилятора RVO
+    return avg_map;  // работает оптимизация компилятора RVO (отсутствует копирование)
 }
+
+// Шаблонная функция расчета среднего рейтинга всех книг в картотеке
+template <BookContainerLike T>
+double calculateAverageRating(const BookDatabase<T> &db) {
+    // Если картотека пуста, возвращаем 0.0
+    if (db.empty()) {
+        return 0.0;
+    }
+
+    // Суммирование рейтингов выполняем с помощью std::accumulate
+    double sum = std::accumulate(db.begin(),                         // начало диапазона
+                                 db.end(),                           // конец диапазона
+                                 0.0,                                // начальное значение
+                                 [](double acc, const Book &book) {  // бинарная операция (сложение рейтингов)
+                                     return acc + book.rating_;
+                                 });
+
+    // Версия через std::transform_reduce с рапараллеливанием работает медленнее из-за оверхеда на потоки
+    // (политика std::execution::par_unseq - "делай как можно быстрее": для маленьких данных - последовательно, для
+    // больших - компилятор/библиотека решают, стоит ли распараллеливать)
+    // double sum = std::transform_reduce(std::execution::par_unseq, db.begin(), db.end(), 0.0,
+    //                                    std::plus<>(),          // бинарная операция для reduce (сложение рейтингов)
+    //                                    [](const Book &book) {  // унарная операция для transform (извлечение
+    //                                    рейтинга)
+    //                                        return book.rating_;
+    //                                    });
+
+    return sum / db.size();  // возвращаем средний рейтинг
+}
+
+// Шаблонная функция случайной выборки заданного числа книг из картотеки
+template <BookContainerLike T>
+std::vector<std::reference_wrapper<const Book>> sampleRandomBooks(const BookDatabase<T> &db, size_t count) {
+    using RefWrapper = std::reference_wrapper<const Book>;  // псевдоним для типа возвращаемых элементов
+
+    size_t n = std::min(count, db.size());  // ограничиваем число выбираемых книг размером картотеки
+    std::vector<RefWrapper> sampling;       // создаем массив для хранения результатов выборки
+    sampling.reserve(n);                    // резервируем память под n элементов выборки
+
+    // Если запрошено 0 книг (или картотека пуста), то возвращаем пустую выборку
+    if (n == 0) {
+        return sampling;
+    }
+
+    // Выполняем псевдослучайную выборку книг из картотеки с помощью std::sample
+    std::sample(db.begin(), db.end(),                   // входной диапазон
+                std::back_inserter(sampling),           // выходной итератор
+                n,                                      // число выбираемых книг
+                std::mt19937{std::random_device{}()});  // генератор псевдослучайных чисел
+
+    return sampling;  // работает оптимизация компилятора RVO (отсутствует копирование)
+}
+
+// Шаблонная функция для получения топ-N книг по заданному критерию
+// (функции разрешено изменять порядок книг во входном контейнере (картотеке книг))
+template <BookContainerLike T, typename Comparator>
+std::vector<std::reference_wrapper<const Book>> getTopNBy(BookDatabase<T> &db, size_t n, Comparator comp) {
+    using RefWrapper = std::reference_wrapper<const Book>;  // псевдоним для типа возвращаемых элементов
+
+    size_t num_tops = std::min(n, db.size());  // ограничиваем топ-N книг размером картотеки
+    std::vector<RefWrapper> top_result;        // создаем массив для хранения топ-N книг
+    top_result.reserve(num_tops);              // резервируем память под топ-N книг
+
+    // Если запрошено 0 книг (или картотека пуста), то возвращаем пустую подборку
+    if (n == 0) {
+        return top_result;
+    }
+
+    // Частично сортируем картотеку с помощью std::partial_sort - сложность O(nlog(num_tops))
+    // (первые num_tops элементов будут упорядочены согласно заданному критерию)
+    std::partial_sort(db.begin(), db.begin() + num_tops, db.end(), comp);
+
+    // Копируем ссылки на топ-N книг в выходной массив ссылок
+    std::copy(db.begin(), db.begin() + num_tops, std::back_inserter(top_result));
+
+    return top_result;  // работает оптимизация компилятора RVO (отсутствует копирование)
+}
+
 }  // namespace bookdb
