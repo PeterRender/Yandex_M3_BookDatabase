@@ -1,4 +1,5 @@
 #include <algorithm>  // подключение std::sort, std::for_each и др.
+#include <print>  // подключение std::print
 
 #include "book_database.hpp"  // заголовочный файл с классом картотеки книг и шаблоном ее форматирования
 #include "comparators.hpp"    // компараторы для работы с описателями книг
@@ -17,10 +18,10 @@ int main() {
     //     - Не забудьте перед созданием коммита вызвать 'run_clang_format.sh' для форматирования кода
     //
 
-    // Create a book database
+    // Создаем объект картотеки книг
     BookDatabase<std::vector<Book>> db;
 
-    // Add some books
+    // Наполняем картотеку описателями книг
     db.EmplaceBack("1984", "George Orwell", 1949, Genre::SciFi, 4., 190);
     db.EmplaceBack("Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143);
     db.EmplaceBack("The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120);
