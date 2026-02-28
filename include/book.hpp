@@ -92,9 +92,9 @@ struct formatter<bookdb::Book, char> {
     template <typename FormatContext>
     auto format(const bookdb::Book &book, FormatContext &ctx) const {
         // Преобразуем описатель книги в строку вида:
-        // "Title: "{}", author: {}, year: {}, genre: {}, rating: {}/5.0, read {} times"
-        return format_to(ctx.out(), "Title: \"{}\", author: {}, year: {}, genre: {}, rating: {:.1f}/5.0, read {} times",
-                         book.title_, book.author_, book.year_,
+        // ""{title}" by {author} ({year}) [{genre}], {rating}/5.0, {} reads"
+        return format_to(ctx.out(), "\"{}\" by {} ({}) [{}], {:.1f}/5.0, {} reads", book.title_, book.author_,
+                         book.year_,
                          book.genre_,  // здесь сработает специализация std::formatter для Genre
                          book.rating_, book.read_count_);
     }

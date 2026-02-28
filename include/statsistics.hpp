@@ -1,17 +1,12 @@
 #pragma once
 
 #include <algorithm>   // подключение std::accumulate, std::sample и др.
-#include <execution>   // подключение политик последовательного/параллельного выполнения кода
 #include <flat_map>    // подключение плоского ассоциативного контейнера (С++23)
 #include <functional>  // подключение std::reference_wrapper
 #include <iterator>
 #include <random>  // подключение ГПСЧ std::random_device, std::mt19937
-#include <stdexcept>
-#include <string_view>
 
 #include "book_database.hpp"
-
-#include <print>
 
 namespace bookdb {
 
@@ -46,9 +41,7 @@ auto calculateGenreRatings(It first, Sen last) {
     std::flat_map<Genre, std::pair<double, size_t>> avg_map;
 
     // Вычисляем средние рейтинги книг по жанрам за один проход
-    for (auto it = first; it != last; ++it) {
-        const auto &book = *it;
-
+    std::for_each(first, last, [&avg_map](const Book &book) {
         // Пытаемся вставить новый элемент (жанр, {рейтинг, 1 книга})
         auto [map_it, inserted] = avg_map.try_emplace(book.genre_, std::pair{book.rating_, 1});
 
@@ -58,7 +51,7 @@ auto calculateGenreRatings(It first, Sen last) {
             // Обновляем среднее по формуле: avg_new = avg_old + (x - avg_old) / (n + 1)
             map_it->second.first += (book.rating_ - map_it->second.first) / map_it->second.second;
         }
-    }
+    });
 
     return avg_map;  // работает оптимизация компилятора RVO (отсутствует копирование)
 }
@@ -95,34 +88,34 @@ double calculateAverageRating(const BookDatabase<T> &db) {
 // Шаблонная функция случайной выборки заданного числа книг из картотеки
 template <BookContainerLike T>
 std::vector<std::reference_wrapper<const Book>> sampleRandomBooks(const BookDatabase<T> &db, size_t count) {
-    using RefWrapper = std::reference_wrapper<const Book>;  // псевдоним для типа возвращаемых элементов
+    using RefBook = std::reference_wrapper<const Book>;  // псевдоним для типа ссылки на книгу
 
     size_t n = std::min(count, db.size());  // ограничиваем число выбираемых книг размером картотеки
-    std::vector<RefWrapper> sampling;       // создаем массив для хранения результатов выборки
-    sampling.reserve(n);                    // резервируем память под n элементов выборки
+    std::vector<RefBook> out_books;         // создаем массив ссылок на отобранные книги
+    out_books.reserve(n);                   // резервируем память под n элементов выборки
 
     // Если запрошено 0 книг (или картотека пуста), то возвращаем пустую выборку
     if (n == 0) {
-        return sampling;
+        return out_books;
     }
 
     // Выполняем псевдослучайную выборку книг из картотеки с помощью std::sample
     std::sample(db.begin(), db.end(),                   // входной диапазон
-                std::back_inserter(sampling),           // выходной итератор
+                std::back_inserter(out_books),          // выходной итератор
                 n,                                      // число выбираемых книг
                 std::mt19937{std::random_device{}()});  // генератор псевдослучайных чисел
 
-    return sampling;  // работает оптимизация компилятора RVO (отсутствует копирование)
+    return out_books;  // работает оптимизация компилятора RVO (отсутствует копирование)
 }
 
 // Шаблонная функция для получения топ-N книг по заданному критерию
 // (функции разрешено изменять порядок книг во входном контейнере (картотеке книг))
 template <BookContainerLike T, typename Comparator>
 std::vector<std::reference_wrapper<const Book>> getTopNBy(BookDatabase<T> &db, size_t n, Comparator comp) {
-    using RefWrapper = std::reference_wrapper<const Book>;  // псевдоним для типа возвращаемых элементов
+    using RefBook = std::reference_wrapper<const Book>;  // псевдоним для типа ссылки на книгу
 
     size_t num_tops = std::min(n, db.size());  // ограничиваем топ-N книг размером картотеки
-    std::vector<RefWrapper> top_result;        // создаем массив для хранения топ-N книг
+    std::vector<RefBook> top_result;           // создаем массив ссылок отобранные на топ-N книг
     top_result.reserve(num_tops);              // резервируем память под топ-N книг
 
     // Если запрошено 0 книг (или картотека пуста), то возвращаем пустую подборку

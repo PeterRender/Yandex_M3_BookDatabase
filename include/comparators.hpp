@@ -59,7 +59,7 @@ struct LessByRating {
 };
 
 // Класс прозрачного компаратора по числу прочтений
-struct LessByReadCount {
+struct LessByPopularity {
     using is_transparent = void;  // спец. маркер для поддержки гетерогенного поиска
 
     // Перегруженные операторы вызова функции
@@ -83,6 +83,6 @@ struct Greater {
 // Псевдонимы для greater версий
 using GreaterByYear = Greater<LessByYear>;
 using GreaterByRating = Greater<LessByRating>;
-using GreaterByReadCount = Greater<LessByReadCount>;
+using GreaterByPopularity = Greater<LessByPopularity>;
 
 }  // namespace bookdb::comp

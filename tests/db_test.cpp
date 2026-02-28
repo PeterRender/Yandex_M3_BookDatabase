@@ -5,6 +5,7 @@
 #include "book_database.hpp"         // заголовочный файл с классом картотеки книг и шаблоном ее форматирования
 #include "comparators.hpp"           // компараторы для работы с описателями книг
 #include "concepts.hpp"              // концепты для работы с описателями книг
+#include "filters.hpp"               // фильтры для работы с описателями книг
 #include "heterogeneous_lookup.hpp"  // прозрачные компараторы и хэш-функция для гетерогенного поиска
 #include "statsistics.hpp"           // подключение функций расчета статистик картотеки книг
 
@@ -79,8 +80,8 @@ TEST(BookTest, CorrectComparators) {
     auto LessByRatingComp = [](const Book &a, const Book &b) {
         return LessByRating{}(a, b) && LessByRating{}(a, b.rating_) && LessByRating{}(a.rating_, b);
     };
-    auto LessByReadCountComp = [](const Book &a, const Book &b) {
-        return LessByReadCount{}(a, b) && LessByReadCount{}(a, b.read_count_) && LessByReadCount{}(a.read_count_, b);
+    auto LessByPopularityComp = [](const Book &a, const Book &b) {
+        return LessByPopularity{}(a, b) && LessByPopularity{}(a, b.read_count_) && LessByPopularity{}(a.read_count_, b);
     };
     auto GreaterByYearComp = [](const Book &a, const Book &b) {
         return GreaterByYear{}(a, b) && GreaterByYear{}(a, b.year_) && GreaterByYear{}(a.year_, b);
@@ -88,9 +89,9 @@ TEST(BookTest, CorrectComparators) {
     auto GreaterByRatingComp = [](const Book &a, const Book &b) {
         return GreaterByRating{}(a, b) && GreaterByRating{}(a, b.rating_) && GreaterByRating{}(a.rating_, b);
     };
-    auto GreaterByReadCountComp = [](const Book &a, const Book &b) {
-        return GreaterByReadCount{}(a, b) && GreaterByReadCount{}(a, b.read_count_) &&
-               GreaterByReadCount{}(a.read_count_, b);
+    auto GreaterByPopularityComp = [](const Book &a, const Book &b) {
+        return GreaterByPopularity{}(a, b) && GreaterByPopularity{}(a, b.read_count_) &&
+               GreaterByPopularity{}(a.read_count_, b);
     };
 
     // Создаем массив тестов для пар книг
@@ -98,10 +99,10 @@ TEST(BookTest, CorrectComparators) {
                                    {"LessByTitle", gatsby, hobbit, LessByTitleComp, true},
                                    {"LessByYear", gatsby, hobbit, LessByYearComp, true},
                                    {"LessByRating", gatsby, hobbit, LessByRatingComp, true},
-                                   {"LessByReadCount", gatsby, hobbit, LessByReadCountComp, true},
+                                   {"LessByPopularity", gatsby, hobbit, LessByPopularityComp, true},
                                    {"GreaterByYear", world, gatsby, GreaterByYearComp, true},
                                    {"GreaterByRating", world, gatsby, GreaterByRatingComp, false},
-                                   {"GreaterByReadCount", world, gatsby, GreaterByReadCountComp, false}};
+                                   {"GreaterByPopularity", world, gatsby, GreaterByPopularityComp, false}};
 
     // Запускаем все тесты в цикле
     for (const auto &[name, lhs, rhs, comp, expected] : tests) {
@@ -121,8 +122,8 @@ TEST(BookTest, CorrectConcepts) {
     static_assert(BookIterator<std::vector<Book>::const_iterator>);
 
     // Компараторы описателей книг должны отвечать концепту BookComparator
-    static_assert(AllComparatorsValid<LessByAuthor, LessByTitle, LessByYear, LessByRating, LessByReadCount,
-                                      GreaterByYear, GreaterByRating, GreaterByReadCount>);
+    static_assert(AllComparatorsValid<LessByAuthor, LessByTitle, LessByYear, LessByRating, LessByPopularity,
+                                      GreaterByYear, GreaterByRating, GreaterByPopularity>);
 
     // Лямбда должна отвечать концепту BookPredicate
     auto isSciFi = [](const Book &b) { return b.genre_ == Genre::SciFi; };
@@ -422,4 +423,37 @@ TEST(StatisticsTest, GetTopNBy) {
     BookDatabase<std::vector<Book>> empty_db;
     auto top_empty = getTopNBy(empty_db, 3, GreaterByRating{});
     EXPECT_TRUE(top_empty.empty());
+}
+
+// Тест фильтрации книг
+TEST(FilterTest, FilterBooks) {
+    using namespace bookdb;
+
+    // Создаем тестовую картотеку книг из 5 книг
+    BookDatabase db = {
+        {"The Great Gatsby", "F. Scott Fitzgerald", 1925, Genre::Fiction, 4.5, 120},
+        {"1984", "George Orwell", 1949, Genre::SciFi, 4.0, 190},
+        {"Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98},
+        {"Animal Farm", "George Orwell", 1945, Genre::Fiction, 4.4, 143},
+        {"The Hobbit", "J.R.R. Tolkien", 1937, Genre::Fiction, 4.9, 203},
+    };
+
+    // Фильтр "И": научная фантастика с рейтингом >= 4.5 и год издания [1930, 1950]
+    auto all_filter = all_of(GenreIs(Genre::SciFi), RatingAbove(4.5), YearBetween(1930, 1950));
+    auto result_all = filterBooks(db.begin(), db.end(), all_filter);
+    // Должна отобраться только одна книга - "Brave New World"
+    EXPECT_EQ(result_all.size(), 1);
+    EXPECT_EQ(result_all[0].get().title_, "Brave New World");
+
+    // Фильтр "ИЛИ": или биография, или с рейтингом >= 4.9, или год в диапазоне [1995, 2000]
+    auto any_filter = any_of(GenreIs(Genre::Biography), RatingAbove(4.9), YearBetween(1995, 2000));
+    auto result_any = filterBooks(db.begin(), db.end(), any_filter);
+    // Должна отобраться только одна книга - "The Hobbit"
+    EXPECT_EQ(result_any.size(), 1);
+    EXPECT_EQ(result_any[0].get().title_, "The Hobbit");
+
+    // Фильтр "пустая выборка"
+    auto none_filter = all_of(GenreIs(Genre::Biography), RatingAbove(5.0), YearBetween(2010, 2020));
+    auto result_none = filterBooks(db.begin(), db.end(), none_filter);
+    EXPECT_TRUE(result_none.empty());
 }
