@@ -27,7 +27,7 @@ public:
     using iterator = typename BookContainer::iterator;
     using const_iterator = typename BookContainer::const_iterator;
 
-    // Контейнер для авторов с поддержкой гетерогенного поиска
+    // Псевдоним контейнера для авторов с поддержкой гетерогенного поиска
     // (используем std::string для хранения авторов, т.к. в описателе книги автор задан в виде std::string_view)
     using AuthorContainer = std::unordered_set<std::string, TransparentStringHash, TransparentStringEqual>;
 
@@ -61,15 +61,15 @@ public:
 
     // Метод, добавляющий описатель книги в картотеку
     void PushBack(const Book &book) {
-        books_.push_back(book);                      // добавляем описатель книги в хранилище описателей
-        authors_.insert(std::string(book.author_));  // добавляем автора книги в хранилище авторов
+        books_.push_back(book);                          // добавляем описатель книги в хранилище описателей
+        authors_.insert(std::string(book.GetAuthor()));  // добавляем автора книги в хранилище авторов
     }
 
     // Шаблонный метод, принимающий аргументы для создания описателя книги прямо внутри картотеки
     template <typename... Args>
     decltype(auto) EmplaceBack(Args &&...args) {
         auto &book = books_.emplace_back(std::forward<Args>(args)...);  // cоздаем описатель книги прямо в хранилище
-        authors_.insert(std::string(book.author_));                     // добавляем автора книги в хранилище авторов
+        authors_.insert(std::string(book.GetAuthor()));                 // добавляем автора книги в хранилище авторов
         return book;
     }
 

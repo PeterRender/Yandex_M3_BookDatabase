@@ -9,26 +9,21 @@ namespace bookdb {
 
 // Концепт для контейнера, хранящего описатели книг
 template <typename T>
-concept BookContainerLike = requires(T t) {
-    typename T::value_type;                               // должен иметь внутренний тип
-    requires std::same_as<typename T::value_type, Book>;  // внутренний тип должен быть Book
-    typename T::const_iterator;                           // должен иметь константный итератор
-
-    // Должен предоставлять доступ только для чтения к своему началу и концу
-    { t.cbegin() } -> std::same_as<typename T::const_iterator>;
-    { t.cend() } -> std::same_as<typename T::const_iterator>;
-
-    { t.size() } -> std::convertible_to<std::size_t>;  // должен возвращать свой размер
-};
+concept BookContainerLike = std::ranges::contiguous_range<T> &&            // данные хранятся в памяти подряд
+                            std::same_as<typename T::value_type, Book> &&  // хранит описатели книг
+                            requires(T t, const T ct) {
+                                // Явно проверяем нужные итераторы и методы
+                                typename T::const_iterator;
+                                { ct.cbegin() } -> std::same_as<typename T::const_iterator>;  // есть const begin
+                                { ct.cend() } -> std::same_as<typename T::const_iterator>;    // есть const end
+                                { t[0] } -> std::convertible_to<const Book &>;                // есть operator[]
+                                t.push_back(std::declval<Book>());  // можно добавлять элементы в конец
+                            };
 
 // Концепт для итератора по описателям книг
-template <typename T>  //
-concept BookIterator = std::input_iterator<T> && requires(T it, const Book &book) {
-    // BookIterator должен отвечать стандартному концепту итератора ввода (чтобы читать, двигаться вперед)
-    // и удовлетворять следующим требованиям:
-    { *it } -> std::convertible_to<const Book &>;  // должен уметь разыменовываться в const Book&
-    requires std::same_as<typename std::iterator_traits<T>::value_type, Book>;  // внутренний тип должен быть Book
-};
+template <typename T>
+concept BookIterator = std::contiguous_iterator<T> &&  // итератор на непрерывную память (для сортировки)
+                       std::same_as<typename std::iter_value_t<T>, Book>;  // итератор на книги
 
 // Концепт для ограничителя диапазона
 template <typename S, typename I>

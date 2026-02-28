@@ -12,11 +12,11 @@ struct LessByAuthor {
 
     // Перегруженные операторы вызова функции
     // а) для сравнения описателей книг по автору
-    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.author_ < rhs.author_; }
+    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.GetAuthor() < rhs.GetAuthor(); }
     // б) для сравнения описателя книги и автора-строки (для гетерогенного поиска)
-    bool operator()(const Book &book, std::string_view author) const { return book.author_ < author; }
+    bool operator()(const Book &book, std::string_view author) const { return book.GetAuthor() < author; }
     // в) для сравнения автора-строки и описателя книги (для гетерогенного поиска)
-    bool operator()(std::string_view author, const Book &book) const { return author < book.author_; }
+    bool operator()(std::string_view author, const Book &book) const { return author < book.GetAuthor(); }
 };
 
 // Класс прозрачного компаратора по названию книги (лексикографическое сравнение)
@@ -25,11 +25,11 @@ struct LessByTitle {
 
     // Перегруженные операторы вызова функции
     // а) для сравнения описателей книг по названию
-    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.title_ < rhs.title_; }
+    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.GetTitle() < rhs.GetTitle(); }
     // б) для сравнения описателя книги и названия-строки (для гетерогенного поиска)
-    bool operator()(const Book &book, std::string_view title) const { return book.title_ < title; }
+    bool operator()(const Book &book, std::string_view title) const { return book.GetTitle() < title; }
     // в) для сравнения названия-строки и описателя книги (для гетерогенного поиска)
-    bool operator()(std::string_view title, const Book &book) const { return title < book.title_; }
+    bool operator()(std::string_view title, const Book &book) const { return title < book.GetTitle(); }
 };
 
 // Класс прозрачного компаратора по году издания книги
@@ -38,11 +38,11 @@ struct LessByYear {
 
     // Перегруженные операторы вызова функции
     // а) для сравнения описателей книг по году издания
-    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.year_ < rhs.year_; }
+    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.GetYear() < rhs.GetYear(); }
     // б) для сравнения описателя книги и года-числа (для гетерогенного поиска)
-    bool operator()(const Book &book, int year) const { return book.year_ < year; }
+    bool operator()(const Book &book, int year) const { return book.GetYear() < year; }
     // в) для сравнения года-числа и описателя книги (для гетерогенного поиска)
-    bool operator()(int year, const Book &book) const { return year < book.year_; }
+    bool operator()(int year, const Book &book) const { return year < book.GetYear(); }
 };
 
 // Класс прозрачного компаратора по рейтингу книги
@@ -51,11 +51,11 @@ struct LessByRating {
 
     // Перегруженные операторы вызова функции
     // а) для сравнения описателей книг по рейтингу
-    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.rating_ < rhs.rating_; }
+    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.GetRating() < rhs.GetRating(); }
     // б) для сравнения описателя книги и рейтинга-числа (для гетерогенного поиска)
-    bool operator()(const Book &book, double rating) const { return book.rating_ < rating; }
+    bool operator()(const Book &book, double rating) const { return book.GetRating() < rating; }
     // в) для сравнения рейтинга-числа и описателя книги (для гетерогенного поиска)
-    bool operator()(double rating, const Book &book) const { return rating < book.rating_; }
+    bool operator()(double rating, const Book &book) const { return rating < book.GetRating(); }
 };
 
 // Класс прозрачного компаратора по числу прочтений
@@ -64,11 +64,11 @@ struct LessByPopularity {
 
     // Перегруженные операторы вызова функции
     // а) для сравнения описателей книг по числу прочтений
-    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.read_count_ < rhs.read_count_; }
+    bool operator()(const Book &lhs, const Book &rhs) const { return lhs.GetReadCount() < rhs.GetReadCount(); }
     // б) для сравнения описателя книги и числа прочтений (для гетерогенного поиска)
-    bool operator()(const Book &book, int read_count) const { return book.read_count_ < read_count; }
+    bool operator()(const Book &book, int read_count) const { return book.GetReadCount() < read_count; }
     // в) для сравнения числа прочтений и описателя книги (для гетерогенного поиска)
-    bool operator()(int read_count, const Book &book) const { return read_count < book.read_count_; }
+    bool operator()(int read_count, const Book &book) const { return read_count < book.GetReadCount(); }
 };
 
 // ==== Компараторы по убыванию ====

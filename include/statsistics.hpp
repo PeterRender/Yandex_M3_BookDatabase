@@ -21,7 +21,7 @@ auto buildAuthorHistogramFlat(const BookDatabase<T> &cont, Comparator comp = {})
     // Цикл по всем книгам в картотеке
     for (const auto &book : cont.GetBooks()) {
         // Пытаемся вставить в контейнер новый элемент (автор, 1 книга)
-        auto [it, inserted] = histogram.try_emplace(std::string(book.author_), 1);
+        auto [it, inserted] = histogram.try_emplace(std::string(book.GetAuthor()), 1);
 
         // Если элемент не был вставлен (уже есть в контейнере), то увеличиваем счетчик книг для автора
         if (!inserted) {
@@ -43,13 +43,13 @@ auto calculateGenreRatings(It first, Sen last) {
     // Вычисляем средние рейтинги книг по жанрам за один проход
     std::for_each(first, last, [&avg_map](const Book &book) {
         // Пытаемся вставить новый элемент (жанр, {рейтинг, 1 книга})
-        auto [map_it, inserted] = avg_map.try_emplace(book.genre_, std::pair{book.rating_, 1});
+        auto [map_it, inserted] = avg_map.try_emplace(book.GetGenre(), std::pair{book.GetRating(), 1});
 
         // Если жанр уже есть в контейнере, то обновляем для него средний рейтинг
         if (!inserted) {
             map_it->second.second++;  // увеличиваем счетчик книг
             // Обновляем среднее по формуле: avg_new = avg_old + (x - avg_old) / (n + 1)
-            map_it->second.first += (book.rating_ - map_it->second.first) / map_it->second.second;
+            map_it->second.first += (book.GetRating() - map_it->second.first) / map_it->second.second;
         }
     });
 
@@ -69,7 +69,7 @@ double calculateAverageRating(const BookDatabase<T> &db) {
                                  db.end(),                           // конец диапазона
                                  0.0,                                // начальное значение
                                  [](double acc, const Book &book) {  // бинарная операция (сложение рейтингов)
-                                     return acc + book.rating_;
+                                     return acc + book.GetRating();
                                  });
 
     // Версия через std::transform_reduce с рапараллеливанием работает медленнее из-за оверхеда на потоки

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
-#include <print>
+
+#include <deque>  // подключение std::deque
+#include <list>   // подключение std::list
 
 #include "book.hpp"                  // заголовочный файл с классом описателя книги и шаблонами для его форматирования
 #include "book_database.hpp"         // заголовочный файл с классом картотеки книг и шаблоном ее форматирования
@@ -15,24 +17,24 @@ using namespace bookdb;
 TEST(BookTest, BookWithStrGenre) {
     Book book("The Hobbit", "J.R.R. Tolkien", 1937, "Fiction", 4.9, 203);
 
-    EXPECT_EQ(book.title_, "The Hobbit");
-    EXPECT_EQ(book.author_, "J.R.R. Tolkien");
-    EXPECT_EQ(book.year_, 1937);
-    EXPECT_EQ(book.genre_, Genre::Fiction);
-    EXPECT_DOUBLE_EQ(book.rating_, 4.9);
-    EXPECT_EQ(book.read_count_, 203);
+    EXPECT_EQ(book.GetTitle(), "The Hobbit");
+    EXPECT_EQ(book.GetAuthor(), "J.R.R. Tolkien");
+    EXPECT_EQ(book.GetYear(), 1937);
+    EXPECT_EQ(book.GetGenre(), Genre::Fiction);
+    EXPECT_DOUBLE_EQ(book.GetRating(), 4.9);
+    EXPECT_EQ(book.GetReadCount(), 203);
 }
 
 // Тест создания корректного описателя книги с заданием жанра с помощью перечисляемой константы
 TEST(BookTest, BookWithEnumGenre) {
     Book book("Brave New World", "Aldous Huxley", 1932, Genre::SciFi, 4.5, 98);
 
-    EXPECT_EQ(book.title_, "Brave New World");
-    EXPECT_EQ(book.author_, "Aldous Huxley");
-    EXPECT_EQ(book.year_, 1932);
-    EXPECT_EQ(book.genre_, Genre::SciFi);
-    EXPECT_DOUBLE_EQ(book.rating_, 4.5);
-    EXPECT_EQ(book.read_count_, 98);
+    EXPECT_EQ(book.GetTitle(), "Brave New World");
+    EXPECT_EQ(book.GetAuthor(), "Aldous Huxley");
+    EXPECT_EQ(book.GetYear(), 1932);
+    EXPECT_EQ(book.GetGenre(), Genre::SciFi);
+    EXPECT_DOUBLE_EQ(book.GetRating(), 4.5);
+    EXPECT_EQ(book.GetReadCount(), 98);
 }
 
 // Тест корректного форматрирования описателя книги
@@ -69,29 +71,30 @@ TEST(BookTest, CorrectComparators) {
 
     // Лямбды-обертки тестируемых прозрачных компараторов
     auto LessByAuthorComp = [](const Book &a, const Book &b) {
-        return LessByAuthor{}(a, b) && LessByAuthor{}(a, b.author_) && LessByAuthor{}(a.author_, b);
+        return LessByAuthor{}(a, b) && LessByAuthor{}(a, b.GetAuthor()) && LessByAuthor{}(a.GetAuthor(), b);
     };
     auto LessByTitleComp = [](const Book &a, const Book &b) {
-        return LessByTitle{}(a, b) && LessByTitle{}(a, b.title_) && LessByTitle{}(a.title_, b);
+        return LessByTitle{}(a, b) && LessByTitle{}(a, b.GetTitle()) && LessByTitle{}(a.GetTitle(), b);
     };
     auto LessByYearComp = [](const Book &a, const Book &b) {
-        return LessByYear{}(a, b) && LessByYear{}(a, b.year_) && LessByYear{}(a.year_, b);
+        return LessByYear{}(a, b) && LessByYear{}(a, b.GetYear()) && LessByYear{}(a.GetYear(), b);
     };
     auto LessByRatingComp = [](const Book &a, const Book &b) {
-        return LessByRating{}(a, b) && LessByRating{}(a, b.rating_) && LessByRating{}(a.rating_, b);
+        return LessByRating{}(a, b) && LessByRating{}(a, b.GetRating()) && LessByRating{}(a.GetRating(), b);
     };
     auto LessByPopularityComp = [](const Book &a, const Book &b) {
-        return LessByPopularity{}(a, b) && LessByPopularity{}(a, b.read_count_) && LessByPopularity{}(a.read_count_, b);
+        return LessByPopularity{}(a, b) && LessByPopularity{}(a, b.GetReadCount()) &&
+               LessByPopularity{}(a.GetReadCount(), b);
     };
     auto GreaterByYearComp = [](const Book &a, const Book &b) {
-        return GreaterByYear{}(a, b) && GreaterByYear{}(a, b.year_) && GreaterByYear{}(a.year_, b);
+        return GreaterByYear{}(a, b) && GreaterByYear{}(a, b.GetYear()) && GreaterByYear{}(a.GetYear(), b);
     };
     auto GreaterByRatingComp = [](const Book &a, const Book &b) {
-        return GreaterByRating{}(a, b) && GreaterByRating{}(a, b.rating_) && GreaterByRating{}(a.rating_, b);
+        return GreaterByRating{}(a, b) && GreaterByRating{}(a, b.GetRating()) && GreaterByRating{}(a.GetRating(), b);
     };
     auto GreaterByPopularityComp = [](const Book &a, const Book &b) {
-        return GreaterByPopularity{}(a, b) && GreaterByPopularity{}(a, b.read_count_) &&
-               GreaterByPopularity{}(a.read_count_, b);
+        return GreaterByPopularity{}(a, b) && GreaterByPopularity{}(a, b.GetReadCount()) &&
+               GreaterByPopularity{}(a.GetReadCount(), b);
     };
 
     // Создаем массив тестов для пар книг
@@ -115,18 +118,23 @@ TEST(BookTest, CorrectConcepts) {
     using namespace bookdb;
     using namespace bookdb::comp;
 
-    // Контейнер std::vector должен отвечать концепту BookContainerLike
+    // Контейнер картотеки книг должен отвечать концепту BookContainerLike
     static_assert(BookContainerLike<std::vector<Book>>);
+    static_assert(!BookContainerLike<std::deque<Book>>);
+    static_assert(!BookContainerLike<std::list<Book>>);
+    static_assert(!BookContainerLike<std::array<Book, 10>>);
 
-    // Итератор std::vector должен отвечать концепту BookIterator
-    static_assert(BookIterator<std::vector<Book>::const_iterator>);
+    // Итератор контейнера картотеки должен отвечать концепту BookIterator
+    static_assert(BookIterator<std::vector<Book>::iterator>);
+    static_assert(!BookIterator<std::deque<Book>::iterator>);
+    static_assert(!BookIterator<std::list<Book>::iterator>);
 
     // Компараторы описателей книг должны отвечать концепту BookComparator
     static_assert(AllComparatorsValid<LessByAuthor, LessByTitle, LessByYear, LessByRating, LessByPopularity,
                                       GreaterByYear, GreaterByRating, GreaterByPopularity>);
 
     // Лямбда должна отвечать концепту BookPredicate
-    auto isSciFi = [](const Book &b) { return b.genre_ == Genre::SciFi; };
+    auto isSciFi = [](const Book &b) { return b.GetGenre() == Genre::SciFi; };
     static_assert(BookPredicate<decltype(isSciFi)>);
 
     // Проверяем некорретные случаи
@@ -189,8 +197,9 @@ TEST(BookDatabaseTest, CorrectFilling) {
     // Заполняем картотеки описателями книг (1-ую картотеку - путем добавления, 2-ую - путем создания внутри)
     for (const auto &b : books) {
         bookDbs[0].PushBack(b);
-        auto &empl_book = bookDbs[1].EmplaceBack(b.title_, b.author_, b.year_, b.genre_, b.rating_, b.read_count_);
-        EXPECT_EQ(empl_book.title_, b.title_);  // должна вернуться ссылка на созданную книгу
+        auto &empl_book = bookDbs[1].EmplaceBack(b.GetTitle(), b.GetAuthor(), b.GetYear(), b.GetGenre(), b.GetRating(),
+                                                 b.GetReadCount());
+        EXPECT_EQ(empl_book.GetTitle(), b.GetTitle());  // должна вернуться ссылка на созданную книгу
     }
 
     // Проверяем заполненные картотеки
@@ -204,7 +213,7 @@ TEST(BookDatabaseTest, CorrectFilling) {
 
         // В картотеке должны быть все добавленные уникальные авторы
         for (const auto &b : books) {
-            EXPECT_TRUE(db.GetAuthors().contains(b.author_));
+            EXPECT_TRUE(db.GetAuthors().contains(b.GetAuthor()));
         }
     }
 }
@@ -226,7 +235,7 @@ TEST(BookDatabaseTest, CorrectInit) {
 
     // В картотеке должны быть все добавленные уникальные авторы
     for (const auto &b : book_list) {
-        EXPECT_TRUE(db.GetAuthors().contains(b.author_));
+        EXPECT_TRUE(db.GetAuthors().contains(b.GetAuthor()));
     }
 }
 
@@ -249,14 +258,14 @@ TEST(BookDatabaseTest, StdAlgoReadiness) {
 
     // Проверяем результат стабильной сортировки по рейтингу
     auto it = db.begin();
-    EXPECT_EQ(it->title_, "The Hobbit");            // на 1-ом месте должен быть "The Hobbit"
-    EXPECT_EQ((++it)->title_, "The Great Gatsby");  // на 2-ом месте - "The Great Gatsby"
-    EXPECT_EQ((++it)->title_, "Brave New World");   // на 3-м месте - "Brave New World"
-    EXPECT_EQ((++it)->title_, "Animal Farm");       // на 4-м месте - "Animal Farm"
-    EXPECT_EQ((++it)->title_, "1984");              // на 5-м месте - "1984"
+    EXPECT_EQ(it->GetTitle(), "The Hobbit");            // на 1-ом месте должен быть "The Hobbit"
+    EXPECT_EQ((++it)->GetTitle(), "The Great Gatsby");  // на 2-ом месте - "The Great Gatsby"
+    EXPECT_EQ((++it)->GetTitle(), "Brave New World");   // на 3-м месте - "Brave New World"
+    EXPECT_EQ((++it)->GetTitle(), "Animal Farm");       // на 4-м месте - "Animal Farm"
+    EXPECT_EQ((++it)->GetTitle(), "1984");              // на 5-м месте - "1984"
 
     // Проверяем поиск по условию
-    auto hobbit_it = std::find_if(db.begin(), db.end(), [](const Book &b) { return b.year_ == 1937; });
+    auto hobbit_it = std::find_if(db.begin(), db.end(), [](const Book &b) { return b.GetYear() == 1937; });
     EXPECT_NE(hobbit_it, db.end());
 }
 
@@ -365,8 +374,9 @@ TEST(StatisticsTest, SampleRandomBooks) {
     for (const auto &ref : sampling1) {
         const Book &book = ref.get();
         // Ищем каждую книгу в картотеке по названию и году
-        auto it = std::find_if(db.begin(), db.end(),
-                               [&book](const Book &b) { return b.title_ == book.title_ && b.year_ == book.year_; });
+        auto it = std::find_if(db.begin(), db.end(), [&book](const Book &b) {
+            return b.GetTitle() == book.GetTitle() && b.GetYear() == book.GetYear();
+        });
         // Книга должна быть найдена в картотеке
         EXPECT_NE(it, db.end());
     }
@@ -404,16 +414,16 @@ TEST(StatisticsTest, GetTopNBy) {
 
     EXPECT_EQ(top_rating.size(), 3);  // в подборке должно быть 3 книги
     // В подборке должны быть книги с рейтингами 4.9, 4.5, 4.5
-    EXPECT_EQ(top_rating[0].get().rating_, 4.9);  // "The Hobbit"
-    EXPECT_EQ(top_rating[1].get().rating_, 4.5);  // The Great Gatsby" или "Brave New World"
-    EXPECT_EQ(top_rating[2].get().rating_, 4.5);  // The Great Gatsby" или "Brave New World"
+    EXPECT_EQ(top_rating[0].get().GetRating(), 4.9);  // "The Hobbit"
+    EXPECT_EQ(top_rating[1].get().GetRating(), 4.5);  // The Great Gatsby" или "Brave New World"
+    EXPECT_EQ(top_rating[2].get().GetRating(), 4.5);  // The Great Gatsby" или "Brave New World"
 
     // Тест 2: Получим подборку топ-5 книг по убыванию рейтинга (сортировка всех книг)
     auto top_all = getTopNBy(db, 5, GreaterByRating{});
     EXPECT_EQ(top_all.size(), 5);
     // В подборке должны быть книги с рейтингами 4.9 (1 место) и 4.0 (5 место)
-    EXPECT_EQ(top_all[0].get().rating_, 4.9);  // "The Hobbit"
-    EXPECT_EQ(top_all[4].get().rating_, 4.0);  // "1984"
+    EXPECT_EQ(top_all[0].get().GetRating(), 4.9);  // "The Hobbit"
+    EXPECT_EQ(top_all[4].get().GetRating(), 4.0);  // "1984"
 
     // Тест 3: Запрос топ-0 книг
     auto top_zero = getTopNBy(db, 0, GreaterByRating{});
@@ -443,14 +453,14 @@ TEST(FilterTest, FilterBooks) {
     auto result_all = filterBooks(db.begin(), db.end(), all_filter);
     // Должна отобраться только одна книга - "Brave New World"
     EXPECT_EQ(result_all.size(), 1);
-    EXPECT_EQ(result_all[0].get().title_, "Brave New World");
+    EXPECT_EQ(result_all[0].get().GetTitle(), "Brave New World");
 
     // Фильтр "ИЛИ": или биография, или с рейтингом >= 4.9, или год в диапазоне [1995, 2000]
     auto any_filter = any_of(GenreIs(Genre::Biography), RatingAbove(4.9), YearBetween(1995, 2000));
     auto result_any = filterBooks(db.begin(), db.end(), any_filter);
     // Должна отобраться только одна книга - "The Hobbit"
     EXPECT_EQ(result_any.size(), 1);
-    EXPECT_EQ(result_any[0].get().title_, "The Hobbit");
+    EXPECT_EQ(result_any[0].get().GetTitle(), "The Hobbit");
 
     // Фильтр "пустая выборка"
     auto none_filter = all_of(GenreIs(Genre::Biography), RatingAbove(5.0), YearBetween(2010, 2020));

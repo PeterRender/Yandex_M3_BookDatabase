@@ -12,17 +12,17 @@ namespace bookdb {
 
 // Предикат совпадения жанра книги
 inline auto GenreIs(Genre genre) {
-    return [genre](const Book &book) { return book.genre_ == genre; };
+    return [genre](const Book &book) { return book.GetGenre() == genre; };
 }
 
 // Предикат превышения рейтинга книги заданного порога
 inline auto RatingAbove(double threshold) {
-    return [threshold](const Book &book) { return book.rating_ >= threshold; };
+    return [threshold](const Book &book) { return book.GetRating() >= threshold; };
 }
 
 // Предикат нахождения года издания книги в заданном диапазоне
 inline auto YearBetween(int from, int to) {
-    return [from, to](const Book &book) { return (book.year_ >= from) && (book.year_ <= to); };
+    return [from, to](const Book &book) { return (book.GetYear() >= from) && (book.GetYear() <= to); };
 }
 
 // === Композиции предикатов (на основе fold expressions) ===

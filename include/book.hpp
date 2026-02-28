@@ -23,16 +23,8 @@ constexpr Genre GenreFromString(std::string_view s) {
 }
 
 // Класс описателя книги
-struct Book {
-    // string_view для экономии памяти, чтобы ссылаться на оригинальную строку, хранящуюся в другом контейнере
-    std::string_view author_;  // автор
-    std::string title_;        // название книги
-
-    int year_;        // год издания
-    Genre genre_;     // жанр
-    double rating_;   // рейтинг (макс. - 5.0)
-    int read_count_;  // число прочтений
-
+class Book {
+public:
     // Конструктор описателя книги, принимающий жанр в виде строки
     // (может работать во t компиляции, если вcе аргументы const)
     constexpr Book(std::string_view title, std::string_view author, int year, std::string_view genre_str, double rating,
@@ -45,6 +37,23 @@ struct Book {
     constexpr Book(std::string_view title, std::string_view author, int year, Genre genre, double rating,
                    int read_count)
         : author_(author), title_(title), year_(year), genre_(genre), rating_(rating), read_count_(read_count) {}
+
+    // Методы доступа к данным членам класса (могут работать во t компиляции)
+    constexpr std::string_view GetAuthor() const { return author_; }
+    constexpr const std::string &GetTitle() const { return title_; }
+    constexpr int GetYear() const { return year_; }
+    constexpr Genre GetGenre() const { return genre_; }
+    constexpr double GetRating() const { return rating_; }
+    constexpr int GetReadCount() const { return read_count_; }
+
+private:
+    // string_view для экономии памяти, чтобы ссылаться на оригинальную строку, хранящуюся в другом контейнере
+    std::string_view author_;  // автор
+    std::string title_;        // название книги
+    int year_;                 // год издания
+    Genre genre_;              // жанр
+    double rating_;            // рейтинг (max - 5.0)
+    int read_count_;           // число прочтений
 };
 }  // namespace bookdb
 
@@ -93,10 +102,10 @@ struct formatter<bookdb::Book, char> {
     auto format(const bookdb::Book &book, FormatContext &ctx) const {
         // Преобразуем описатель книги в строку вида:
         // ""{title}" by {author} ({year}) [{genre}], {rating}/5.0, {} reads"
-        return format_to(ctx.out(), "\"{}\" by {} ({}) [{}], {:.1f}/5.0, {} reads", book.title_, book.author_,
-                         book.year_,
-                         book.genre_,  // здесь сработает специализация std::formatter для Genre
-                         book.rating_, book.read_count_);
+        return format_to(ctx.out(), "\"{}\" by {} ({}) [{}], {:.1f}/5.0, {} reads", book.GetTitle(), book.GetAuthor(),
+                         book.GetYear(),
+                         book.GetGenre(),  // здесь сработает специализация std::formatter для Genre
+                         book.GetRating(), book.GetReadCount());
     }
 
     // Метод, выполняющий парсинг спецификаторов формата (значения в скобках {})

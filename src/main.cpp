@@ -72,7 +72,8 @@ int main() {
     std::for_each(topBooks.cbegin(), topBooks.cend(), [](const auto &v) { std::print("{}\n", v.get()); });
 
     // Поиск книги Джорджа Оруэлла
-    auto orwellBookIt = std::find_if(db.begin(), db.end(), [](const auto &v) { return v.author_ == "George Orwell"; });
+    auto orwellBookIt =
+        std::find_if(db.begin(), db.end(), [](const auto &v) { return v.GetAuthor() == "George Orwell"; });
     if (orwellBookIt != db.end()) {
         std::print("\n\nTransparent lookup by authors. Found Orwell's book: {}\n", *orwellBookIt);
     }
