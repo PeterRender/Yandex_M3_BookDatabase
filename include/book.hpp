@@ -9,16 +9,20 @@ namespace bookdb {
 // Перечисляемый тип жанра книги
 enum class Genre { Fiction, NonFiction, SciFi, Biography, Mystery, Unknown };
 
+using namespace std::string_view_literals;  // подключение оператора sv
+
+// Массив пар {номер жанра, имя жанра}
+constexpr std::array genres = {std::pair{Genre::Fiction, "Fiction"sv}, std::pair{Genre::NonFiction, "NonFiction"sv},
+                               std::pair{Genre::SciFi, "SciFi"sv},     std::pair{Genre::Biography, "Biography"sv},
+                               std::pair{Genre::Mystery, "Mystery"sv}, std::pair{Genre::Unknown, "Unknown"sv}};
+
 // Функция, преобразующая строковое значение жанра в его перечисляемый тип
 // (может работать во t компиляции, если аргумент const)
 constexpr Genre GenreFromString(std::string_view s) {
-    // clang-format off
-    if (s == "Fiction")     return Genre::Fiction;
-    if (s == "NonFiction")  return Genre::NonFiction;
-    if (s == "SciFi")       return Genre::SciFi;
-    if (s == "Biography")   return Genre::Biography;
-    if (s == "Mystery")     return Genre::Mystery;
-    // clang-format on
+    for (const auto &[genre_id, genre_name] : genres) {
+        if (genre_name == s)
+            return genre_id;
+    }
     return Genre::Unknown;
 }
 
@@ -67,23 +71,16 @@ struct formatter<bookdb::Genre, char> {
     // (параметр FormatContext задает, куда выводить результат)
     template <typename FormatContext>
     auto format(const bookdb::Genre g, FormatContext &fc) const {
-        std::string genre_str;
+        // Преобразуем номер жанра в индекс в массиве genres (enum совпадает с порядком в массиве genres)
+        size_t idx = static_cast<size_t>(g);
 
-        // clang-format off
-        using bookdb::Genre;
-        switch (g) {
-            case Genre::Fiction:    genre_str = "Fiction"; break;
-            case Genre::Mystery:    genre_str = "Mystery"; break;
-            case Genre::NonFiction: genre_str = "NonFiction"; break;
-            case Genre::SciFi:      genre_str = "SciFi"; break;
-            case Genre::Biography:  genre_str = "Biography"; break;
-            case Genre::Unknown:    genre_str = "Unknown"; break;
-            default:
-                throw logic_error{"Unsupported bookdb::Genre"};
-            }
-        // clang-format on
+        // Проверяем, что индекс в допустимых пределах
+        if (idx >= bookdb::genres.size()) {
+            throw std::logic_error{"Unsupported bookdb::Genre"};
+        }
+
         // Берем строку жанра и копируем ее как есть в выходной буфер.
-        return format_to(fc.out(), "{}", genre_str);
+        return format_to(fc.out(), "{}", bookdb::genres[idx].second);
     }
 
     // Метод, выполняющий парсинг спецификаторов формата (значения в скобках {})
